@@ -1,32 +1,41 @@
 package mlp;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class node {
-    private ArrayList<Double> data;
-    private int Class;
-    private Double peso;
+    private List<Double> data;
+    private Double weight;
     private Double net;
  
-    public node(ArrayList<Double> data, int class1) {
-        this.data = data;
-        Class = class1;
+    public node() {
+        this.data = new ArrayList<Double> ();
     }
 
-    public ArrayList<Double> getData() {
+    public List<Double> getData() {
         return data;
     }
 
-    public void setData(ArrayList<Double> data) {
+    public void setData(List<Double> data) {
         this.data = data;
     }
 
-    public int get_Class() {
-        return Class;
+    public Double getWeight() {
+        return weight;
     }
 
-    public void setClass(int class1) {
-        Class = class1;
+    
+
+    public void setWeight(Double weight) {
+        this.weight = weight;
+    }
+
+    public Double getNet() {
+        return net;
+    }
+
+    public void setNet(Double net) {
+        this.net = net;
     }
 
     public Double linearDer(){
@@ -52,5 +61,6 @@ public class node {
     public Double tangentDer (){
         return 1-Math.pow(this.tangent(),2);
     }
+
 
 }

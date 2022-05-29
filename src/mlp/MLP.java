@@ -5,6 +5,8 @@
  */
 package mlp;
 
+import java.io.IOException;
+
 /**
  *
  * @author Ailton Junior
@@ -13,9 +15,14 @@ public class MLP {
 
     /**
      * @param args the command line arguments
+     * @throws IOException
      */
-    public static void main(String[] args) {
-        // TODO code application logic here
+    public static void main(String[] args) throws IOException {
+        net n = new net(0.0,0,0,0,0,0);
+
+        n.readArq("C:\\IA\\base_teste.csv");
+        n.exibe();
+
     }
     
 }
