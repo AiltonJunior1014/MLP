@@ -4,40 +4,41 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 public class net {
     private List<List<Double>> data;
     private ArrayList<String> desired;
+    private ArrayList<String> desiredaux;
     private int[] desiredIndex;
-    private ArrayList<layer> layers;
+    private layer layers;
     private Double error;
+    private Double predicted;
     private int entry;
     private int exit;
-    private int ocultLayer;
-    private int iterations;
+    private Double errormin;
     private int options;
+    private node outputNode;
+    private Double learningRate;
+    private int[][] confusionMatrix;
     
-    public net(Double error, int entry, int exit, int ocultLayer,
-            int iterations, int options) {
+    
+    public net(int entry, int exit, Double errormin, int options, Double learningRate) {
         this.data = new ArrayList<List<Double>>();
         this.desired = new ArrayList<String>();
-        this.layers = new ArrayList<layer>();
-        this.error = error;
+        this.desiredaux = new ArrayList<String>();
+        this.error = 0.0;
         this.entry = entry;
         this.exit = exit;
-        this.ocultLayer = ocultLayer;
-        this.iterations = iterations;
+        this.errormin = errormin;
         this.options = options;
+        this.learningRate = learningRate;
+        this.outputNode = new node();
+        setWeight();
     }
-
-    
 
     public ArrayList<String> getDesired() {
         return desired;
@@ -71,22 +72,6 @@ public class net {
         this.exit = exit;
     }
 
-    public int getOcultLayer() {
-        return ocultLayer;
-    }
-
-    public void setOcultLayer(int ocultLayer) {
-        this.ocultLayer = ocultLayer;
-    }
-
-    public int getIterations() {
-        return iterations;
-    }
-
-    public void setIterations(int iterations) {
-        this.iterations = iterations;
-    }
-
     public int getOptions() {
         return options;
     }
@@ -95,9 +80,12 @@ public class net {
         this.options = options;
     }
 
-    public void setWeight (){
-        for(layer i : this.layers) {
-            i.setWeight();
+    public void setWeight() {
+        Double aux;
+        Random rand = new Random();
+        for(int j=0; j<this.entry; j++) {
+            aux = rand.nextDouble();
+            this.outputNode.setWeight(aux);
         }
     }
 
@@ -138,38 +126,125 @@ public class net {
         
         set = desiredAux.stream().distinct().collect(Collectors.toList());
         
-        this.desired.addAll(set);
+        this.desired.addAll(desiredAux);
+        this.desiredaux.addAll(set);
 
-        this.desiredIndex = new int [this.desired.size()];
+        this.desiredIndex = new int [this.desiredaux.size()];
 
-        for(int i = 0; i < this.desired.size(); i++){
-            this.desiredIndex[i] = i;
+        for(int i = 0; i < this.desiredaux.size(); i++){
+            this.desiredIndex[i] = i+1;
         }
-        
     }
 
 
     public void trainning(){
+        int pos=0;
+        List<Double> vals;
+        
+        this.layers= (new layer(this.learningRate,error,this.data.get(0).size(),this.options));
+        this.layers.setWeight(this.entry);
 
-        for(int i=0; i< this.ocultLayer;i++){
-            this.layers.add(new layer(0.2,error,this.data.get(0).size()));
-            this.layers.get(i).setWeight();
+        for(int index=0; index<this.data.size(); index++){
+            vals = this.data.get(index);
+            
+            this.layers.setDataentries(vals);
+            this.layers.trainning();
+            
+            this.outputNode.setData(this.layers.getDataoutput());
+            this.outputNode.calculateNet();
+
+            switch(this.options) {
+                case 1:
+                    this.predicted = this.outputNode.linear();
+                    break;
+                case 2:
+                    this.predicted = this.outputNode.logistical();
+                    break;
+                case 3:
+                    this.predicted = this.outputNode.tangent();
+                    break;
+            }
+
+            pos = this.desiredIndex[this.desiredaux.indexOf(this.desired.get(index))];
+
+            
+            this.error = 0.5*Math.pow((pos - this.predicted),2);
+
+            if(this.error < this.errormin){
+                index = this.data.size()+1;
+                this.error  = -1.0;
+            }
+            else{
+                this.outputNode.calculateError(pos, this.predicted, this.options);
+                this.outputNode.attweight(this.learningRate);
+
+                this.layers.calculateError(error, this.outputNode.getWeight());
+                this.layers.attweight();
+            }
+            
+
+            //System.out.printf("Iteration: "+index+" Error: %.5f\n",this.error);
+            //System.out.printf("Predicted: %.5f Desired: %s\n",this.predicted,this.desired.get(index));
+
         }
 
-        for(List<Double> vals : this.data){
-            for(layer L : this.layers){
-                L.setDataentries(vals);
-                L.trainning();
+    }
+
+    public void initializeMatrix(){
+        this.confusionMatrix = new int[this.desiredIndex.length][this.desiredIndex.length];
+        for(int i=0; i<this.desiredIndex.length;i++){
+            for(int j=0; j<this.desiredIndex.length;j++){
+                this.confusionMatrix[i][j] = 0;
             }
         }
-
     }
 
-    public void exibe(){
-        for(int i =0;i< this.data.size();i++){
-            System.out.println(this.data.get(i));
+    
+    public void test(String arqName) throws IOException {
+        List<Double> vals;
+        
+        
+        this.data = new ArrayList<List<Double>>();
+        this.desiredIndex = new int [this.desiredaux.size()];
+        this.desired = new ArrayList<String>();
+        this.desiredaux = new ArrayList<String>();
+        
+        readArq(arqName);
+        initializeMatrix();
+
+        for(int index=0; index<this.data.size(); index++){
+            vals = this.data.get(index);
+            
+            this.layers.setDataentries(vals);
+            this.layers.trainning();
+            
+            this.outputNode.setData(this.layers.getDataoutput());
+            this.outputNode.calculateNet();
+
+            switch(this.options) {
+                case 1:
+                    this.predicted = this.outputNode.linear();
+                    break;
+                case 2:
+                    this.predicted = this.outputNode.logistical();
+                    break;
+                case 3:
+                    this.predicted = this.outputNode.tangent();
+                    break;
+            }
+            
+            this.confusionMatrix[this.desiredIndex[this.desiredaux.indexOf(this.desired.get(index))]-1][(int)Math.round(this.predicted)]++;
+            
+
+            // System.out.printf("Iteration: "+index+" Error: %.5f\n",this.error);
+            // System.out.printf("Predicted: %.5f Desired: %s\n",this.predicted,this.desired.get(index));
+        }
+        for(int i=0;i<this.confusionMatrix[0].length;i++){
+            for(int j=0;j<this.confusionMatrix.length;j++){
+                System.out.print(this.confusionMatrix[i][j]+" ");
+            }
+            System.out.println();
         }
     }
-    
 
 }
